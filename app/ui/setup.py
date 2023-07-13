@@ -174,6 +174,7 @@ def sndk_url(account: str, user: str, region: str) -> str:
     # )
 
 
+# Sample code generation. This code needs to be replaced with Anshul's code to setup tenant_registration
 def generate_code_to_setup_external_functions(region: str, app_name: str) -> str:
     gateway_prefixes = get_api_gateway_prefixes(region)
     return f"""
