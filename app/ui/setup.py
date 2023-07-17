@@ -188,6 +188,11 @@ END;
 """
 
 
+def get_redirect_url_for_security_integration(sf_region: str) -> str:
+    region = get_sndk_region(sf_region)
+    return f"https://api.sundeck.ninja:8443/{region}/v1/login/finish"
+
+
 def get_api_gateway_prefixes(sf_region: str) -> str:
     api_prefix_map = {
         "us-east-1": "'https://1lf9af4dk7.execute-api.us-east-1.amazonaws.com', "
