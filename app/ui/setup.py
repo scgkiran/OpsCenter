@@ -189,7 +189,7 @@ END;
 
 
 def get_redirect_url_for_security_integration(sf_region: str) -> str:
-    region = get_sndk_region(sf_region)
+    region = get_sundeck_region(sf_region)
     return f"https://api.sundeck.ninja:8443/{region}/v1/login/finish"
 
 
@@ -203,10 +203,10 @@ def get_api_gateway_prefixes(sf_region: str) -> str:
         + "'https://w4cu711jd2.execute-api.us-west-2.amazonaws.com'",
     }
 
-    return api_prefix_map[get_sndk_region(sf_region)]
+    return api_prefix_map[get_sundeck_region(sf_region)]
 
 
-def get_sndk_region(sf_region: str) -> str:
+def get_sundeck_region(sf_region: str) -> str:
     # Supported Sundeck Regions ["us-east-1", "us-east-2.aws", "us-west-2"]
     region_map = {
         "AWS_US_WEST_2": "us-west-2",
