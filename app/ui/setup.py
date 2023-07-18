@@ -74,6 +74,8 @@ def setup_block():
     sf_region_without_public = sf_region.split(".")[-1]
 
     region = region_map[sf_region_without_public]
+    external_func_url = get_api_gateway_url(region, sd_deployment)
+    connection.Connection.get().call("INTERNAL.SETUP_EF_URL", external_func_url)
 
     def expander(num: int, title: str, finished: bool) -> st.expander:
         c = "[Pending]"
