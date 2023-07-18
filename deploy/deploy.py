@@ -181,7 +181,7 @@ def main(argv):
             print("==Skipping Package Creation")
             skip_package = True
 
-    execute(profile, version, deployment, skip_install, skip_package)
+    execute(profile, version, deployment, not skip_install, skip_package)
 
 
 def execute(

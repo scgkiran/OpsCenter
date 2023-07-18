@@ -193,9 +193,18 @@ END;
     )
 
 
-def get_redirect_url_for_security_integration(sf_region: str) -> str:
-    region = get_sundeck_region(sf_region)
-    return f"https://api.sundeck.ninja:8443/{region}/v1/login/finish"
+def get_redirect_url_for_security_integration(
+    sf_region: str, sd_deployment: str
+) -> str:
+
+    base_url_map = {
+        "prod": "https://api.sundeck.io",
+        "stage": "https://api.stage.sndk.io",
+        "dev": "https://api.dev.sndk.io",
+    }
+    base_url = base_url_map[sd_deployment]
+    sd_region = get_sundeck_region(sf_region)
+    return f"{base_url}/{sd_region}/v1/login/finish"
 
 
 def get_api_gateway_url(sf_region: str, sd_deployment: str) -> str:
