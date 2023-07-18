@@ -65,7 +65,7 @@ def setup_block():
         current_account() as account,
         current_user() as username,
         current_region() as region,
-        get_sundeck_deployment() as deployment"""
+        internal.get_sundeck_deployment() as deployment"""
         ).values[0]
     )
 
