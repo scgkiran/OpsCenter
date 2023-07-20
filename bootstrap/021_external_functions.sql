@@ -121,15 +121,51 @@ BEGIN
     execute immediate 'create or replace function internal.get_ef_url() returns string as \'\\\'' || url || '\\\'\';';
 END;
 
-create or replace procedure internal.setup_sundeck_tenant_url(url string) RETURNS STRING LANGUAGE SQL AS
-BEGIN
-    execute immediate 'create or replace function internal.get_tenant_url() returns string as \'\\\'' || url || '\\\'\';';
-END;
 
 create or replace procedure internal.setup_sundeck_token(url string, token string) RETURNS STRING LANGUAGE SQL AS
 BEGIN
     execute immediate 'create or replace function internal.get_ef_url() returns string as \'\\\'' || url || '\\\'\';';
     execute immediate 'create or replace function internal.get_ef_token() returns string as \'\\\'' || token || '\\\'\';';
+END;
+
+create function if not exists internal.ef_registertenant(request object)
+    returns object
+    language javascript
+    as
+    'throw "tenant register requires api gateway to be configured";';
+
+
+create or replace function internal.wrapper_registertenant(request object)
+    returns object
+    immutable
+as
+$$
+    iff(length(internal.ef_registertenant(request):error) != 0,
+        internal.throw_exception(internal.ef_registertenant(request):error),
+        internal.ef_registertenant(request))::object
+$$;
+
+create or replace function tools.registertenant(request object)
+    returns object
+as
+$$
+    internal.wrapper_registertenant(request)
+$$;
+
+CREATE OR REPLACE PROCEDURE admin.setup_register_tenant_func() RETURNS STRING LANGUAGE SQL AS
+BEGIN
+    let url string := (select internal.get_ef_url());
+    let deployment string := (select internal.get_sundeck_deployment());
+    execute immediate '
+        BEGIN
+	        create or replace external function internal.ef_registertenant(request object)
+            returns object
+            context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA, CURRENT_REGION)
+            api_integration = reference(\'opscenter_api_integration_ad2\')
+            headers = ()
+            as \'' || url || '/' || deployment || '/extfunc/register_tenant\';
+        END;
+    ';
 END;
 
 CREATE OR REPLACE PROCEDURE admin.setup_external_functions() RETURNS STRING LANGUAGE SQL AS
@@ -141,21 +177,21 @@ BEGIN
             create or replace external function internal.ef_qlike(request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA)
-            api_integration = reference(\'opscenter_api_integration\')
+            api_integration = reference(\'opscenter_api_integration_ad1\')
             headers = (\'sndk-token\' = \'sndk_' || token || '\')
             as \'' || url || '/extfunc/qlike\';
 
             create or replace external function internal.ef_notifications(request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA)
-            api_integration = reference(\'opscenter_api_integration\')
+            api_integration = reference(\'opscenter_api_integration_ad1\')
             headers = (\'sndk-token\' = \'sndk_' || token || '\')
             as \'' || url || '/extfunc/notifications\';
 
             create or replace external function internal.ef_run(unused object, request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA)
-            api_integration = reference(\'opscenter_api_integration\')
+            api_integration = reference(\'opscenter_api_integration_ad1\')
             headers = (\'sndk-token\' = \'sndk_' || token || '\')
             as \'' || url || '/extfunc/run\';
         END;
@@ -163,6 +199,22 @@ BEGIN
 
     MERGE INTO internal.config AS target
     USING (SELECT 'url' AS key, :url AS value
+    ) AS source
+    ON target.key = source.key
+    WHEN MATCHED THEN
+      UPDATE SET value = source.value
+    WHEN NOT MATCHED THEN
+      INSERT (key, value)
+      VALUES (source.key, source.value);
+END;
+
+CREATE OR REPLACE PROCEDURE admin.setup_sundeck_tenant_url(url string, token string) RETURNS STRING LANGUAGE SQL AS
+BEGIN
+    execute immediate 'create or replace function internal.get_tenant_url() returns string as \'\\\'' || url || '\\\'\';';
+    execute immediate 'create or replace function internal.get_ef_token() returns string as \'\\\'' || token || '\\\'\';';
+
+    MERGE INTO internal.config AS target
+    USING (SELECT 'tenant_url' AS key, :url AS value
     ) AS source
     ON target.key = source.key
     WHEN MATCHED THEN
