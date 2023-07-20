@@ -207,7 +207,7 @@ def sundeck_signup_with_snowflake_sso(
         """
     )
 
-    if st.button("Prepare to Enable Notifications", key="create_api_integration"):
+    if st.button("Enable Sundeck API Integration", key="create_api_integration"):
         req = perms.request_aws_api_integration(
             "opscenter_api_integration_ad2",
             (ef_url,),
@@ -218,11 +218,10 @@ def sundeck_signup_with_snowflake_sso(
             None,
         )
         if req is None:
-            print("Token recorded, creating API integration.")
+            print("Successfully created API integration.")
             st.code(
-                # To debug
                 """
-                "SUCCESSFULLY got reference of API integration, calling ADMIN.SETUP_REGISTER_TENANT_FUNC()"
+                "Successfully created API integration. Please run the following command in your Snowflake account"
                 """
             )
         else:
@@ -270,7 +269,7 @@ def generate_code_to_create_security_integration(
 ) -> str:
     redirect_url = get_redirect_url_for_security_integration(sf_region, sd_deployment)
     return f"""
-create or replace security integration {name}
+create security integration if not exists {name}
     type=oauth
     enabled=true
     oauth_client=CUSTOM
@@ -284,11 +283,15 @@ create or replace security integration {name}
 
 def generate_code_to_register_tenant(db: str, security_integration_name: str) -> str:
     return f"""
-let SecurityIntegration:='{security_integration_name}';
-let oauth_info variant := (parse_json(SYSTEM$SHOW_OAUTH_CLIENT_SECRETS(:SecurityIntegration)));
+let oauth_info variant := (parse_json(SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('{security_integration_name}')));
 let tenantInfo object := {db}.tools.registertenant(:oauth_info:OAUTH_CLIENT_ID, :oauth_info:OAUTH_CLIENT_SECRET);
 CALL {db}.admin.setup_sundeck_tenant_url(:tenantInfo:sundeckTenantUrl, :tenantInfo:sundeckUdfToken);
-return OBJECT_CONSTRUCT('Sundeck Account ', tenantInfo:sundeckTenantUrl);
+
+let rs resultset := (select 'Go to Sundeck UI' As msg,
+    :tenantInfo:sundeckTenantUrl::string as url,
+    :tenantInfo:sundeckUdfToken::string as token);
+return table(rs);
+
 """
 
 
