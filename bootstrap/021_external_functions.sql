@@ -128,28 +128,28 @@ BEGIN
     execute immediate 'create or replace function internal.get_ef_token() returns string as \'\\\'' || token || '\\\'\';';
 END;
 
-create function if not exists internal.ef_registertenant(request object)
+create function if not exists internal.ef_register_tenant(request object)
     returns object
     language javascript
     as
     'throw "tenant register requires api gateway to be configured";';
 
 
-create or replace function internal.wrapper_registertenant(request object)
+create or replace function internal.wrapper_register_tenant(request object)
     returns object
     immutable
 as
 $$
-    iff(length(internal.ef_registertenant(request):error) != 0,
-        internal.throw_exception(internal.ef_registertenant(request):error),
-        internal.ef_registertenant(request))::object
+    iff(length(internal.ef_register_tenant(request):error) != 0,
+        internal.throw_exception(internal.ef_register_tenant(request):error),
+        internal.ef_register_tenant(request))::object
 $$;
 
-create or replace function tools.registertenant(client_id varchar, client_secret varchar)
+create or replace function tools.register_tenant(client_id varchar, client_secret varchar)
     returns object
 as
 $$
-    internal.wrapper_registertenant(object_construct('sfAppName', 'sundeck_opscenter', 'clientKey', client_id, 'clientSecret', client_secret))
+    internal.wrapper_register_tenant(object_construct('sfAppName', 'sundeck_opscenter', 'clientKey', client_id, 'clientSecret', client_secret))
 $$;
 
 
@@ -159,10 +159,10 @@ BEGIN
     let deployment string := (select internal.get_sundeck_deployment());
     execute immediate '
         BEGIN
-	        create or replace external function internal.ef_registertenant(request object)
+	        create or replace external function internal.ef_register_tenant(request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA, CURRENT_REGION)
-            api_integration = reference(\'opscenter_api_integration_ad2\')
+            api_integration = reference(\'opscenter_api_integration_sso\')
             headers = ()
             as \'' || url || '/' || deployment || '/extfunc/register_tenant\';
         END;
@@ -178,21 +178,21 @@ BEGIN
             create or replace external function internal.ef_qlike(request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA)
-            api_integration = reference(\'opscenter_api_integration_ad1\')
+            api_integration = reference(\'opscenter_api_integration\')
             headers = (\'sndk-token\' = \'sndk_' || token || '\')
             as \'' || url || '/extfunc/qlike\';
 
             create or replace external function internal.ef_notifications(request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA)
-            api_integration = reference(\'opscenter_api_integration_ad1\')
+            api_integration = reference(\'opscenter_api_integration\')
             headers = (\'sndk-token\' = \'sndk_' || token || '\')
             as \'' || url || '/extfunc/notifications\';
 
             create or replace external function internal.ef_run(unused object, request object)
             returns object
             context_headers = (CURRENT_ACCOUNT, CURRENT_USER, CURRENT_ROLE, CURRENT_DATABASE, CURRENT_SCHEMA)
-            api_integration = reference(\'opscenter_api_integration_ad1\')
+            api_integration = reference(\'opscenter_api_integration\')
             headers = (\'sndk-token\' = \'sndk_' || token || '\')
             as \'' || url || '/extfunc/run\';
         END;

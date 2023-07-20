@@ -36,6 +36,6 @@ else:
         tenant_url = config.get_tenant_url()
         st.markdown(
             f"""
-                [Click here]({tenant_url}) to visit your Sundeck account.
+                [Go to my Sundeck account]({tenant_url})
             """
         )

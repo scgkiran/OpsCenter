@@ -103,7 +103,7 @@ END;
         )
 
         option1, option2 = st.tabs(
-            ["Option 1 Signup with Snowflake SSO", "Option 2 Signup using email-Id"]
+            ["Option 1: Signup with Snowflake SSO", "Option 2: Signup using email-Id"]
         )
         with option1:
             sundeck_signup_with_snowflake_sso(
@@ -133,7 +133,7 @@ def sundeck_signup_with_email(account, user, region, db):
         token, url = decode_token(token_input)
         connection.Connection.get().call("INTERNAL.SETUP_SUNDECK_TOKEN", url, token)
         req = perms.request_aws_api_integration(
-            "opscenter_api_integration_ad1",
+            "opscenter_api_integration",
             (
                 API_GATEWAY_PROD_US_EAST_1,
                 API_GATEWAY_PROD_US_EAST_2,
@@ -145,7 +145,7 @@ def sundeck_signup_with_email(account, user, region, db):
             perms.AwsGateway.API_GATEWAY,
             OPSCENTER_ROLE_ARN,
             None,
-            "OPSCENTER_SUNDECK_EXTERNAL_FUNCTIONS_1",
+            "OPSCENTER_SUNDECK_EXTERNAL_FUNCTIONS",
             None,
         )
         if req is None:
@@ -195,7 +195,7 @@ def sundeck_signup_with_snowflake_sso(
         tenant_url = config.get_tenant_url()
         st.markdown(
             f"""
-                Sundeck account is created: [click here]({tenant_url}) to visit your Sundeck account.
+                #### Sundeck account is created: [Go to my Sundeck account]({tenant_url})
             """
         )
 
@@ -209,12 +209,12 @@ def sundeck_signup_with_snowflake_sso(
 
     if st.button("Enable Sundeck API Integration", key="create_api_integration"):
         req = perms.request_aws_api_integration(
-            "opscenter_api_integration_ad2",
+            "opscenter_api_integration_sso",
             (ef_url,),
             perms.AwsGateway.API_GATEWAY,
             OPSCENTER_ROLE_ARN,
             None,
-            "OPSCENTER_SUNDECK_EXTERNAL_FUNCTIONS_2",
+            "OPSCENTER_SUNDECK_EXTERNAL_FUNCTIONS_SSO",
             None,
         )
         if req is None:
@@ -252,47 +252,32 @@ def sundeck_signup_with_snowflake_sso(
 def generate_code_to_create_sundeck_account(
     db: str, sf_region: str, sd_deployment: str, name: str = "SUNDECK_OAUTH2"
 ) -> str:
-    create_security_integration_code = generate_code_to_create_security_integration(
-        sf_region, sd_deployment, name
-    )
-    create_tenant_code = generate_code_to_register_tenant(db, name)
     return f"""
-BEGIN
-{create_security_integration_code}
-{create_tenant_code}
+BEGIN  -- Create security integration and Sundeck account
+{generate_security_integration_code(sf_region, sd_deployment, name)}
+{generate_register_tenant_code(db, name)}
 END
 """
 
 
-def generate_code_to_create_security_integration(
+def generate_security_integration_code(
     sf_region: str, sd_deployment: str, name: str
 ) -> str:
     redirect_url = get_redirect_url_for_security_integration(sf_region, sd_deployment)
-    return f"""
-create security integration if not exists {name}
-    type=oauth
-    enabled=true
-    oauth_client=CUSTOM
-    oauth_client_type='CONFIDENTIAL'
-    oauth_redirect_uri='{redirect_url}'
-    oauth_issue_refresh_tokens=true
-    oauth_refresh_token_validity=86400
-    pre_authorized_roles_list = ('PUBLIC');
-"""
+    return (
+        f"create security integration if not exists {name} type=oauth enabled=true oauth_client=CUSTOM "
+        + f"oauth_client_type='CONFIDENTIAL' oauth_redirect_uri='{redirect_url}' oauth_issue_refresh_tokens=true "
+        + "oauth_refresh_token_validity=86400 pre_authorized_roles_list = ('PUBLIC'); "
+    )
 
 
-def generate_code_to_register_tenant(db: str, security_integration_name: str) -> str:
+def generate_register_tenant_code(db: str, security_integration_name: str) -> str:
     return f"""
 let oauth_info variant := (parse_json(SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('{security_integration_name}')));
-let tenantInfo object := {db}.tools.registertenant(:oauth_info:OAUTH_CLIENT_ID, :oauth_info:OAUTH_CLIENT_SECRET);
+let tenantInfo object := {db}.tools.register_tenant(:oauth_info:OAUTH_CLIENT_ID, :oauth_info:OAUTH_CLIENT_SECRET);
 CALL {db}.admin.setup_sundeck_tenant_url(:tenantInfo:sundeckTenantUrl, :tenantInfo:sundeckUdfToken);
-
-let rs resultset := (select 'Go to Sundeck UI' As msg,
-    :tenantInfo:sundeckTenantUrl::string as url,
-    :tenantInfo:sundeckUdfToken::string as token);
-return table(rs);
-
-"""
+let rs resultset := (select 'Go to Sundeck UI' As msg, :tenantInfo:sundeckTenantUrl::string as url);
+return table(rs);"""
 
 
 def generate_code_to_setup_external_func(

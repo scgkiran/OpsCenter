@@ -16,7 +16,7 @@ privileges:
       description: "For monitoring usage and queries. For cancelling queries based on probe policies."
 
 references:
-  - opscenter_api_integration_ad1:
+  - opscenter_api_integration:
         label: "API Integration"
         description: "Enable email and slack notifications for OpsCenter."
         privileges:
@@ -24,9 +24,9 @@ references:
         object_type: API Integration
         multi_valued: false
         register_callback: admin.update_reference
-  - opscenter_api_integration_ad2:
+  - opscenter_api_integration_sso:
       label: "API Integration"
-      description: "Enable email and slack notifications for OpsCenter."
+      description: "Enable email and slack notifications for OpsCenter via Snowflake SSO."
       privileges:
         - USAGE
       object_type: API Integration
