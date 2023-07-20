@@ -256,7 +256,7 @@ def generate_code_to_create_sundeck_account(
     create_security_integration_code = generate_code_to_create_security_integration(
         sf_region, sd_deployment, name
     )
-    create_tenant_code = generate_code_to_register_tenant(db, sf_region, name)
+    create_tenant_code = generate_code_to_register_tenant(db, name)
     return f"""
 BEGIN
 {create_security_integration_code}
@@ -282,22 +282,13 @@ create or replace security integration {name}
 """
 
 
-def generate_code_to_register_tenant(
-    db: str, sf_region: str, security_integration_name: str
-) -> str:
-    region = get_region(sf_region)
+def generate_code_to_register_tenant(db: str, security_integration_name: str) -> str:
     return f"""
-let sfRegionKey := '{region}';
 let SecurityIntegration:='{security_integration_name}';
 let oauth_info variant := (parse_json(SYSTEM$SHOW_OAUTH_CLIENT_SECRETS(:SecurityIntegration)));
-let tenantInfo object := {db}.tools.registertenant(OBJECT_CONSTRUCT(
-'sFRegionKey', :sfRegionKey,
-'sfAppName', 'sundeck_opscenter',
-'clientKey', :oauth_info:OAUTH_CLIENT_ID,
-'clientSecret', :oauth_info:OAUTH_CLIENT_SECRET
-));
+let tenantInfo object := {db}.tools.registertenant(:oauth_info:OAUTH_CLIENT_ID, :oauth_info:OAUTH_CLIENT_SECRET);
 CALL {db}.admin.setup_sundeck_tenant_url(:tenantInfo:sundeckTenantUrl, :tenantInfo:sundeckUdfToken);
-return OBJECT_CONSTRUCT('tenantUrl', tenantInfo:sundeckTenantUrl, 'token', tenantInfo:sundeckUdfToken);
+return OBJECT_CONSTRUCT('Sundeck Account ', tenantInfo:sundeckTenantUrl);
 """
 
 
